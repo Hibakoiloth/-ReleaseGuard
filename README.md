@@ -25,6 +25,45 @@ corrective actions, and support controlled rollback.
 
 Modular Monolith
 
+## Repository Structure
+
+```
+ReleaseGuard/
+├── apps/
+│   ├── frontend/        # React + Vite + TypeScript
+│   └── backend/         # Fastify + TypeScript
+├── packages/
+│   └── shared-types/    # Shared TypeScript type definitions
+├── sample-app/
+├── docker/
+├── scripts/
+├── docs/
+├── package.json         # npm workspaces root
+└── README.md
+```
+
+## Development
+
+Install all dependencies from the root:
+
+```bash
+npm install
+```
+
+Start the backend (port 3000):
+
+```bash
+npm run dev:backend
+```
+
+Start the frontend (port 5173):
+
+```bash
+npm run dev:frontend
+```
+
+Open [http://localhost:5173](http://localhost:5173) — the app displays the backend health status.
+
 ## Core Modules
 
 - Project Management

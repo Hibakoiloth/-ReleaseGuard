@@ -1,0 +1,28 @@
+{
+  "name": "@releaseguard/backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10",
+    "@fastify/helmet": "^13",
+    "@fastify/rate-limit": "^10",
+    "@releaseguard/shared-types": "*",
+    "dotenv": "^16",
+    "fastify": "^5",
+    "pino": "^9",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "tsx": "^4",
+    "typescript": "~7.0.2",
+    "vitest": "^3"
+  }
+}
