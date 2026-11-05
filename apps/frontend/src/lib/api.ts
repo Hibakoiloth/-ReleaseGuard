@@ -78,6 +78,18 @@ export interface TestExecution {
   createdAt: string;
 }
 
+export interface Deployment {
+  id: string;
+  releaseId: string;
+  imageTag: string;
+  containerId: string | null;
+  hostPort: number | null;
+  status: string;
+  startedAt: string | null;
+  stoppedAt: string | null;
+  createdAt: string;
+}
+
 export type CreateProjectData = Omit<
   Project,
   "id" | "ownerId" | "status" | "createdAt" | "updatedAt"
@@ -129,5 +141,12 @@ export const testsApi = {
   list: (projectId: string, releaseId: string) =>
     fetchWithAuth<TestExecution[]>(
       `/projects/${projectId}/releases/${releaseId}/tests`
+    ),
+};
+
+export const deploymentsApi = {
+  list: (projectId: string, releaseId: string) =>
+    fetchWithAuth<Deployment[]>(
+      `/projects/${projectId}/releases/${releaseId}/deployments`
     ),
 };

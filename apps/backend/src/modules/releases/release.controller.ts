@@ -3,7 +3,9 @@ import { releaseService } from "./release.service";
 import { projectService } from "../projects/project.service";
 import { buildService } from "../builds/build.service";
 import { testService } from "../tests/test.service";
+import { deploymentService } from "../deployments/deployment.service";
 import { logger } from "../../infrastructure/logging/logger";
+import { rm } from "fs/promises";
 
 type WithProject = { Params: { projectId: string } };
 type WithProjectAndId = { Params: { projectId: string; id: string } };
@@ -12,11 +14,32 @@ async function runPipeline(
   releaseId: string,
   repositoryUrl: string,
   buildCommand: string,
-  testCommand: string
+  testCommand: string,
+  project: Awaited<ReturnType<typeof projectService.get>>,
+  version: string
 ): Promise<void> {
-  const build = await buildService.execute(releaseId, repositoryUrl, buildCommand);
+  const build = await buildService.execute(
+    releaseId,
+    repositoryUrl,
+    buildCommand,
+    { keepWorkspace: true }
+  );
   if (build.status !== "SUCCESS") return;
-  await testService.execute(releaseId, repositoryUrl, testCommand);
+
+  const workspacePath = build.workspacePath;
+
+  try {
+    const test = await testService.execute(releaseId, repositoryUrl, testCommand);
+    if (test.status !== "SUCCESS") return;
+
+    if (workspacePath) {
+      await deploymentService.deploy(releaseId, project, version, workspacePath);
+    }
+  } finally {
+    if (workspacePath) {
+      await rm(workspacePath, { recursive: true, force: true }).catch(() => {});
+    }
+  }
 }
 
 export const releaseController = {
@@ -72,7 +95,9 @@ export const releaseController = {
       release.id,
       project.repositoryUrl,
       project.buildCommand,
-      project.testCommand
+      project.testCommand,
+      project,
+      release.version
     ).catch((err) => logger.error(err, "Pipeline error"));
     reply.status(200).send(release);
   },

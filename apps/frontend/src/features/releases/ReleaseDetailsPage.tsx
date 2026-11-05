@@ -4,9 +4,11 @@ import {
   releasesApi,
   buildsApi,
   testsApi,
+  deploymentsApi,
   type Release,
   type BuildExecution,
   type TestExecution,
+  type Deployment,
 } from "../../lib/api";
 import { Layout } from "../../components/Layout";
 
@@ -30,6 +32,7 @@ export function ReleaseDetailsPage() {
   const [release, setRelease] = useState<Release | null>(null);
   const [builds, setBuilds] = useState<BuildExecution[]>([]);
   const [tests, setTests] = useState<TestExecution[]>([]);
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -44,14 +47,16 @@ export function ReleaseDetailsPage() {
 
   async function fetchAll() {
     if (!projectId || !releaseId) return;
-    const [r, b, t] = await Promise.all([
+    const [r, b, t, d] = await Promise.all([
       releasesApi.get(projectId, releaseId),
       buildsApi.list(projectId, releaseId).catch(() => [] as BuildExecution[]),
       testsApi.list(projectId, releaseId).catch(() => [] as TestExecution[]),
+      deploymentsApi.list(projectId, releaseId).catch(() => [] as Deployment[]),
     ]);
     setRelease(r);
     setBuilds(b);
     setTests(t);
+    setDeployments(d);
     return r;
   }
 
@@ -158,7 +163,83 @@ export function ReleaseDetailsPage() {
       {tests.length > 0 && (
         <ExecutionPanel title="Test" executions={tests} />
       )}
+
+      {deployments.length > 0 && (
+        <DeploymentPanel deployment={deployments[0]} />
+      )}
     </Layout>
+  );
+}
+
+function DeploymentPanel({ deployment }: { deployment: Deployment }) {
+  const statusColor: Record<string, string> = {
+    PENDING: "#6b7280",
+    BUILDING_IMAGE: "#8b5cf6",
+    STARTING: "#3b82f6",
+    RUNNING: "#10b981",
+    STOPPED: "#6b7280",
+    FAILED: "#ef4444",
+  };
+
+  return (
+    <div style={execPanel}>
+      <div style={execHeader}>
+        <span style={{ fontWeight: 600 }}>Deployment</span>
+        <span
+          style={{
+            ...execBadge,
+            background: statusColor[deployment.status] ?? "#6b7280",
+          }}
+        >
+          {deployment.status}
+        </span>
+      </div>
+      <div style={deployGrid}>
+        <DeployRow label="Image">{deployment.imageTag}</DeployRow>
+        {deployment.containerId && (
+          <DeployRow label="Container">
+            {deployment.containerId.slice(0, 12)}
+          </DeployRow>
+        )}
+        {deployment.hostPort && (
+          <DeployRow label="Port">
+            <a
+              href={`http://localhost:${deployment.hostPort}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "#3b82f6" }}
+            >
+              :{deployment.hostPort}
+            </a>
+          </DeployRow>
+        )}
+        {deployment.startedAt && (
+          <DeployRow label="Started">
+            {new Date(deployment.startedAt).toLocaleString()}
+          </DeployRow>
+        )}
+        {deployment.stoppedAt && (
+          <DeployRow label="Stopped">
+            {new Date(deployment.stoppedAt).toLocaleString()}
+          </DeployRow>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DeployRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={metaItem}>
+      <span style={metaLabel}>{label}</span>
+      <span style={{ ...metaValue, fontFamily: "monospace" }}>{children}</span>
+    </div>
   );
 }
 

@@ -24,8 +24,9 @@ export const buildService = {
   async execute(
     releaseId: string,
     repositoryUrl: string,
-    buildCommand: string
-  ): Promise<BuildExecution> {
+    buildCommand: string,
+    options: { keepWorkspace?: boolean } = {}
+  ): Promise<BuildExecution & { workspacePath?: string }> {
     const execution = await buildRepository.create(releaseId);
     let workspace: string | null = null;
 
@@ -98,13 +99,17 @@ export const buildService = {
         completedAt: new Date().toISOString(),
       });
 
-      return (await buildRepository.findById(execution.id, releaseId))!;
+      const result = await buildRepository.findById(execution.id, releaseId);
+      if (options.keepWorkspace && succeeded) {
+        return { ...result!, workspacePath: workspace };
+      }
+      return result!;
     } catch (err) {
       logger.error(err, "Unexpected error during build");
       await this._fail(releaseId, execution.id, "FAILED", "Internal error during build", -1);
       return (await buildRepository.findById(execution.id, releaseId))!;
     } finally {
-      if (workspace) {
+      if (workspace && !options.keepWorkspace) {
         await rm(workspace, { recursive: true, force: true }).catch(() => {});
       }
     }

@@ -134,6 +134,7 @@ export type Database = {
           completed_at: string | null
           container_id: string | null
           created_at: string
+          host_port: number | null
           id: string
           image_tag: string | null
           release_id: string
@@ -144,6 +145,7 @@ export type Database = {
           completed_at?: string | null
           container_id?: string | null
           created_at?: string
+          host_port?: number | null
           id?: string
           image_tag?: string | null
           release_id: string
@@ -154,6 +156,7 @@ export type Database = {
           completed_at?: string | null
           container_id?: string | null
           created_at?: string
+          host_port?: number | null
           id?: string
           image_tag?: string | null
           release_id?: string

@@ -5,6 +5,7 @@ import { projectRoutes } from "./modules/projects/project.routes";
 import { releaseRoutes } from "./modules/releases/release.routes";
 import { buildRoutes } from "./modules/builds/build.routes";
 import { testRoutes } from "./modules/tests/test.routes";
+import { deploymentRoutes } from "./modules/deployments/deployment.routes";
 import { errorHandler } from "./shared/errors";
 import { authenticate } from "./plugins/auth";
 import type { HealthResponse } from "@releaseguard/shared-types";
@@ -29,6 +30,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       await api.register(releaseRoutes, { prefix: "/projects" });
       await api.register(buildRoutes, { prefix: "/projects" });
       await api.register(testRoutes, { prefix: "/projects" });
+      await api.register(deploymentRoutes, { prefix: "/projects" });
     },
     { prefix: "/api" }
   );
