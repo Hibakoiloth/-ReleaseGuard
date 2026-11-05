@@ -128,7 +128,8 @@ export const projectRepository = {
 
     const { data, error } = await supabaseAdmin
       .from("projects")
-      .update(payload)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(payload as any)
       .eq("id", id)
       .eq("owner_id", ownerId)
       .select()

@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { releasesApi, type Release } from "../../lib/api";
+import {
+  releasesApi,
+  buildsApi,
+  testsApi,
+  type Release,
+  type BuildExecution,
+  type TestExecution,
+} from "../../lib/api";
 import { Layout } from "../../components/Layout";
 
 const STATUS_ORDER = [
@@ -12,23 +19,58 @@ const STATUS_ORDER = [
   "SUCCESS",
 ];
 
+const ACTIVE_STATUSES = new Set(["BUILDING", "TESTING", "DEPLOYING", "MONITORING"]);
+const RUNNING_EXEC = new Set(["PENDING", "RUNNING"]);
+
 export function ReleaseDetailsPage() {
   const { id: projectId, releaseId } = useParams<{
     id: string;
     releaseId: string;
   }>();
   const [release, setRelease] = useState<Release | null>(null);
+  const [builds, setBuilds] = useState<BuildExecution[]>([]);
+  const [tests, setTests] = useState<TestExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
+  async function fetchAll() {
+    if (!projectId || !releaseId) return;
+    const [r, b, t] = await Promise.all([
+      releasesApi.get(projectId, releaseId),
+      buildsApi.list(projectId, releaseId).catch(() => [] as BuildExecution[]),
+      testsApi.list(projectId, releaseId).catch(() => [] as TestExecution[]),
+    ]);
+    setRelease(r);
+    setBuilds(b);
+    setTests(t);
+    return r;
+  }
 
   useEffect(() => {
     if (!projectId || !releaseId) return;
-    releasesApi
-      .get(projectId, releaseId)
-      .then(setRelease)
+    fetchAll()
+      .then((r) => {
+        if (r && ACTIVE_STATUSES.has(r.status)) {
+          pollRef.current = setInterval(() => {
+            fetchAll().then((updated) => {
+              if (updated && !ACTIVE_STATUSES.has(updated.status)) stopPolling();
+            });
+          }, 3000);
+        }
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
+
+    return stopPolling;
   }, [projectId, releaseId]);
 
   async function handleStart() {
@@ -37,6 +79,11 @@ export function ReleaseDetailsPage() {
     try {
       const updated = await releasesApi.start(projectId, releaseId);
       setRelease(updated);
+      pollRef.current = setInterval(() => {
+        fetchAll().then((r) => {
+          if (r && !ACTIVE_STATUSES.has(r.status)) stopPolling();
+        });
+      }, 3000);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -103,7 +150,79 @@ export function ReleaseDetailsPage() {
           {new Date(release.updatedAt).toLocaleString()}
         </MetaRow>
       </div>
+
+      {builds.length > 0 && (
+        <ExecutionPanel title="Build" executions={builds} />
+      )}
+
+      {tests.length > 0 && (
+        <ExecutionPanel title="Test" executions={tests} />
+      )}
     </Layout>
+  );
+}
+
+function ExecutionPanel({
+  title,
+  executions,
+}: {
+  title: string;
+  executions: (BuildExecution | TestExecution)[];
+}) {
+  const latest = executions[0];
+  const [expanded, setExpanded] = useState(false);
+
+  const statusColor: Record<string, string> = {
+    PENDING: "#6b7280",
+    RUNNING: "#3b82f6",
+    SUCCESS: "#10b981",
+    FAILED: "#ef4444",
+    TIMED_OUT: "#f59e0b",
+  };
+
+  return (
+    <div style={execPanel}>
+      <div style={execHeader}>
+        <span style={{ fontWeight: 600 }}>{title} execution</span>
+        <span
+          style={{
+            ...execBadge,
+            background: statusColor[latest.status] ?? "#6b7280",
+          }}
+        >
+          {latest.status}
+          {RUNNING_EXEC.has(latest.status) && " …"}
+        </span>
+      </div>
+      <div style={execMeta}>
+        {latest.startedAt && (
+          <span>Started: {new Date(latest.startedAt).toLocaleTimeString()}</span>
+        )}
+        {latest.completedAt && (
+          <span style={{ marginLeft: "1rem" }}>
+            Completed: {new Date(latest.completedAt).toLocaleTimeString()}
+          </span>
+        )}
+        {latest.exitCode !== null && (
+          <span style={{ marginLeft: "1rem" }}>
+            Exit: {latest.exitCode}
+          </span>
+        )}
+      </div>
+      {latest.output && (
+        <>
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            style={toggleBtn}
+          >
+            {expanded ? "Hide output" : "Show output"}
+          </button>
+          {expanded && (
+            <pre style={outputPre}>{latest.output}</pre>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -205,6 +324,7 @@ const metaGrid: React.CSSProperties = {
   padding: "1.25rem",
   display: "grid",
   gap: "0.75rem",
+  marginBottom: "1.5rem",
 };
 const metaItem: React.CSSProperties = {
   display: "flex",
@@ -221,4 +341,52 @@ const metaLabel: React.CSSProperties = {
 const metaValue: React.CSSProperties = {
   fontSize: "0.9rem",
   fontFamily: "monospace",
+};
+const execPanel: React.CSSProperties = {
+  background: "#fff",
+  border: "1px solid #e5e5e5",
+  borderRadius: "8px",
+  padding: "1.25rem",
+  marginBottom: "1.5rem",
+};
+const execHeader: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: "0.5rem",
+};
+const execBadge: React.CSSProperties = {
+  color: "#fff",
+  borderRadius: "4px",
+  padding: "2px 8px",
+  fontSize: "0.75rem",
+  fontWeight: 600,
+};
+const execMeta: React.CSSProperties = {
+  fontSize: "0.8rem",
+  color: "#888",
+  marginBottom: "0.75rem",
+};
+const toggleBtn: React.CSSProperties = {
+  background: "none",
+  border: "1px solid #e5e5e5",
+  borderRadius: "4px",
+  padding: "0.25rem 0.75rem",
+  fontSize: "0.8rem",
+  cursor: "pointer",
+  color: "#555",
+};
+const outputPre: React.CSSProperties = {
+  marginTop: "0.75rem",
+  background: "#1a1a2e",
+  color: "#e2e8f0",
+  borderRadius: "6px",
+  padding: "1rem",
+  fontSize: "0.75rem",
+  lineHeight: 1.6,
+  overflowX: "auto",
+  maxHeight: "400px",
+  overflowY: "auto",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
 };

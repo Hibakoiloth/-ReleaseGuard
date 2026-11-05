@@ -56,6 +56,28 @@ export interface Release {
   updatedAt: string;
 }
 
+export interface BuildExecution {
+  id: string;
+  releaseId: string;
+  status: string;
+  output: string | null;
+  exitCode: number | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface TestExecution {
+  id: string;
+  releaseId: string;
+  status: string;
+  output: string | null;
+  exitCode: number | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
 export type CreateProjectData = Omit<
   Project,
   "id" | "ownerId" | "status" | "createdAt" | "updatedAt"
@@ -94,4 +116,18 @@ export const releasesApi = {
     fetchWithAuth<Release>(`/projects/${projectId}/releases/${id}/start`, {
       method: "POST",
     }),
+};
+
+export const buildsApi = {
+  list: (projectId: string, releaseId: string) =>
+    fetchWithAuth<BuildExecution[]>(
+      `/projects/${projectId}/releases/${releaseId}/builds`
+    ),
+};
+
+export const testsApi = {
+  list: (projectId: string, releaseId: string) =>
+    fetchWithAuth<TestExecution[]>(
+      `/projects/${projectId}/releases/${releaseId}/tests`
+    ),
 };

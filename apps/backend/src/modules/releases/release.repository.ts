@@ -81,4 +81,12 @@ export const releaseRepository = {
     }
     return toRelease(data);
   },
+
+  async adminUpdateStatus(id: string, status: ReleaseStatus): Promise<void> {
+    const { error } = await supabaseAdmin
+      .from("releases")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+  },
 };
