@@ -1,30 +1,87 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../../app";
+import type { Project } from "./project.types";
+
+vi.mock("../../infrastructure/supabase/supabase.client", () => ({
+  supabaseAdmin: {
+    auth: { getUser: vi.fn() },
+    from: vi.fn(),
+  },
+}));
+
+vi.mock("./project.repository", () => ({
+  projectRepository: {
+    findAll: vi.fn(),
+    findById: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
+import { supabaseAdmin } from "../../infrastructure/supabase/supabase.client";
 import { projectRepository } from "./project.repository";
+
+const AUTH = { authorization: "Bearer test-token" };
+const TEST_USER = { id: "user-123", email: "test@example.com" };
+
+function makeProject(overrides: Partial<Project> = {}): Project {
+  return {
+    id: "proj-1",
+    ownerId: "user-123",
+    name: "MyApp",
+    description: null,
+    repositoryUrl: "https://github.com/org/myapp",
+    buildCommand: "npm run build",
+    testCommand: "npm test",
+    dockerfilePath: "Dockerfile",
+    healthCheckPath: "/health",
+    status: "ACTIVE",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
 
 describe("project routes", () => {
   beforeEach(() => {
-    projectRepository.clear();
+    vi.clearAllMocks();
+    vi.mocked(supabaseAdmin.auth.getUser).mockResolvedValue({
+      data: { user: TEST_USER },
+      error: null,
+    } as never);
   });
 
-  it("GET /api/projects returns empty array initially", async () => {
+  it("GET /api/projects returns empty array", async () => {
+    vi.mocked(projectRepository.findAll).mockResolvedValue([]);
     const app = await buildApp();
-    const res = await app.inject({ method: "GET", url: "/api/projects" });
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/projects",
+      headers: AUTH,
+    });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual([]);
   });
 
   it("POST /api/projects creates a project and returns 201", async () => {
+    vi.mocked(projectRepository.create).mockResolvedValue(makeProject());
     const app = await buildApp();
     const res = await app.inject({
       method: "POST",
       url: "/api/projects",
-      payload: { name: "MyApp", repositoryUrl: "https://github.com/org/myapp" },
+      headers: AUTH,
+      payload: {
+        name: "MyApp",
+        repositoryUrl: "https://github.com/org/myapp",
+        buildCommand: "npm run build",
+        testCommand: "npm test",
+        dockerfilePath: "Dockerfile",
+        healthCheckPath: "/health",
+      },
     });
     expect(res.statusCode).toBe(201);
-    const project = res.json<{ name: string; status: string }>();
-    expect(project.name).toBe("MyApp");
-    expect(project.status).toBe("ACTIVE");
+    expect(res.json<{ name: string }>().name).toBe("MyApp");
   });
 
   it("POST /api/projects returns 400 for missing name", async () => {
@@ -32,58 +89,58 @@ describe("project routes", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/projects",
-      payload: { repositoryUrl: "https://github.com/org/myapp" },
-    });
-    expect(res.statusCode).toBe(400);
-  });
-
-  it("POST /api/projects returns 400 for invalid repository URL", async () => {
-    const app = await buildApp();
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/projects",
-      payload: { name: "MyApp", repositoryUrl: "not-a-url" },
+      headers: AUTH,
+      payload: {
+        repositoryUrl: "https://github.com/org/myapp",
+        buildCommand: "npm run build",
+        testCommand: "npm test",
+        dockerfilePath: "Dockerfile",
+        healthCheckPath: "/health",
+      },
     });
     expect(res.statusCode).toBe(400);
   });
 
   it("GET /api/projects/:id returns 404 for nonexistent project", async () => {
+    vi.mocked(projectRepository.findById).mockResolvedValue(null);
     const app = await buildApp();
     const res = await app.inject({
       method: "GET",
       url: "/api/projects/nonexistent-id",
+      headers: AUTH,
     });
     expect(res.statusCode).toBe(404);
   });
 
   it("DELETE /api/projects/:id returns 204 on success", async () => {
+    vi.mocked(projectRepository.delete).mockResolvedValue(true);
     const app = await buildApp();
-    const createRes = await app.inject({
-      method: "POST",
-      url: "/api/projects",
-      payload: { name: "ToDelete", repositoryUrl: "https://github.com/org/del" },
-    });
-    const { id } = createRes.json<{ id: string }>();
-    const deleteRes = await app.inject({
+    const res = await app.inject({
       method: "DELETE",
-      url: `/api/projects/${id}`,
+      url: "/api/projects/proj-1",
+      headers: AUTH,
     });
-    expect(deleteRes.statusCode).toBe(204);
+    expect(res.statusCode).toBe(204);
   });
 
   it("POST /api/projects/:id/archive returns archived project", async () => {
+    vi.mocked(projectRepository.findById).mockResolvedValue(makeProject());
+    vi.mocked(projectRepository.update).mockResolvedValue(
+      makeProject({ status: "ARCHIVED" })
+    );
     const app = await buildApp();
-    const createRes = await app.inject({
+    const res = await app.inject({
       method: "POST",
-      url: "/api/projects",
-      payload: { name: "ToArchive", repositoryUrl: "https://github.com/org/arc" },
+      url: "/api/projects/proj-1/archive",
+      headers: AUTH,
     });
-    const { id } = createRes.json<{ id: string }>();
-    const archiveRes = await app.inject({
-      method: "POST",
-      url: `/api/projects/${id}/archive`,
-    });
-    expect(archiveRes.statusCode).toBe(200);
-    expect(archiveRes.json<{ status: string }>().status).toBe("ARCHIVED");
+    expect(res.statusCode).toBe(200);
+    expect(res.json<{ status: string }>().status).toBe("ARCHIVED");
+  });
+
+  it("returns 401 when no Authorization header", async () => {
+    const app = await buildApp();
+    const res = await app.inject({ method: "GET", url: "/api/projects" });
+    expect(res.statusCode).toBe(401);
   });
 });

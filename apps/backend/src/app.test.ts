@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app";
+
+vi.mock("./infrastructure/supabase/supabase.client", () => ({
+  supabaseAdmin: {
+    auth: { getUser: vi.fn() },
+    from: vi.fn(),
+  },
+}));
 
 describe("health endpoint", () => {
   it("returns status ok with timestamp", async () => {

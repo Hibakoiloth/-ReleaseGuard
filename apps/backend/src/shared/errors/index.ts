@@ -24,6 +24,12 @@ export class ValidationError extends AppError {
   }
 }
 
+export class UnauthorizedError extends AppError {
+  constructor(message = "Unauthorized") {
+    super(401, message, "UNAUTHORIZED");
+  }
+}
+
 export function errorHandler(
   error: FastifyError,
   _request: FastifyRequest,
