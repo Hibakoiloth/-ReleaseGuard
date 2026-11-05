@@ -9,5 +9,8 @@
   "scripts": {
     "dev:frontend": "npm run dev --workspace=apps/frontend",
     "dev:backend": "npm run dev --workspace=apps/backend"
+  },
+  "devDependencies": {
+    "supabase": "^3.0.0"
   }
 }
