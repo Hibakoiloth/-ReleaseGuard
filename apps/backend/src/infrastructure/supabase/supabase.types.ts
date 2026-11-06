@@ -16,28 +16,67 @@ export type Database = {
     Tables: {
       ai_analyses: {
         Row: {
-          created_at: string
           id: string
           incident_id: string
+          status: string
+          model_name: string | null
+          summary: string | null
           probable_cause: string | null
           recommendation: string | null
-          summary: string
+          severity: string | null
+          confidence: number | null
+          evidence: unknown | null
+          impact: string | null
+          recommended_actions: unknown | null
+          rollback_recommended: boolean | null
+          rollback_reason: string | null
+          missing_information: unknown | null
+          processing_duration_ms: number | null
+          error_message: string | null
+          created_at: string
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
           id?: string
           incident_id: string
+          status?: string
+          model_name?: string | null
+          summary?: string | null
           probable_cause?: string | null
           recommendation?: string | null
-          summary: string
+          severity?: string | null
+          confidence?: number | null
+          evidence?: unknown | null
+          impact?: string | null
+          recommended_actions?: unknown | null
+          rollback_recommended?: boolean | null
+          rollback_reason?: string | null
+          missing_information?: unknown | null
+          processing_duration_ms?: number | null
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
           id?: string
           incident_id?: string
+          status?: string
+          model_name?: string | null
+          summary?: string | null
           probable_cause?: string | null
           recommendation?: string | null
-          summary?: string
+          severity?: string | null
+          confidence?: number | null
+          evidence?: unknown | null
+          impact?: string | null
+          recommended_actions?: unknown | null
+          rollback_recommended?: boolean | null
+          rollback_reason?: string | null
+          missing_information?: unknown | null
+          processing_duration_ms?: number | null
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {

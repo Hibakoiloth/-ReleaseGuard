@@ -9,6 +9,7 @@ import { CreateProjectPage } from "./features/projects/CreateProjectPage";
 import { CreateReleasePage } from "./features/releases/CreateReleasePage";
 import { ReleaseDetailsPage } from "./features/releases/ReleaseDetailsPage";
 import { MonitoringDashboard } from "./features/monitoring/MonitoringDashboard";
+import { IncidentDetailsPage } from "./features/incidents/IncidentDetailsPage";
 
 export default function App() {
   return (
@@ -62,6 +63,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <MonitoringDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:id/releases/:releaseId/deployments/:deploymentId/incidents/:incidentId"
+          element={
+            <ProtectedRoute>
+              <IncidentDetailsPage />
             </ProtectedRoute>
           }
         />

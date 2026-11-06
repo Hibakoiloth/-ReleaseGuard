@@ -4,8 +4,13 @@ import type { Project } from "./project.types";
 
 vi.mock("../../infrastructure/supabase/supabase.client", () => ({
   supabaseAdmin: {
-    auth: { getUser: vi.fn() },
     from: vi.fn(),
+  },
+}));
+
+vi.mock("../auth/auth.repository", () => ({
+  authRepository: {
+    findSessionUser: vi.fn(),
   },
 }));
 
@@ -19,11 +24,11 @@ vi.mock("./project.repository", () => ({
   },
 }));
 
-import { supabaseAdmin } from "../../infrastructure/supabase/supabase.client";
+import { authRepository } from "../auth/auth.repository";
 import { projectRepository } from "./project.repository";
 
 const AUTH = { authorization: "Bearer test-token" };
-const TEST_USER = { id: "user-123", email: "test@example.com" };
+const TEST_USER = { id: "user-123", username: "testuser" };
 
 function makeProject(overrides: Partial<Project> = {}): Project {
   return {
@@ -46,10 +51,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
 describe("project routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(supabaseAdmin.auth.getUser).mockResolvedValue({
-      data: { user: TEST_USER },
-      error: null,
-    } as never);
+    vi.mocked(authRepository.findSessionUser).mockResolvedValue(TEST_USER);
   });
 
   it("GET /api/projects returns empty array", async () => {

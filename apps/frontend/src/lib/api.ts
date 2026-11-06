@@ -188,4 +188,42 @@ export const incidentsApi = {
     fetchWithAuth<Incident[]>(
       `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/incidents`
     ),
+  get: (projectId: string, releaseId: string, deploymentId: string, incidentId: string) =>
+    fetchWithAuth<Incident>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/incidents/${incidentId}`
+    ),
+};
+
+export interface AiAnalysis {
+  id: string;
+  incidentId: string;
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  modelName: string | null;
+  summary: string | null;
+  probableCause: string | null;
+  severity: string | null;
+  confidence: number | null;
+  evidence: string[] | null;
+  impact: string | null;
+  recommendedActions: string[] | null;
+  recommendation: string | null;
+  rollbackRecommended: boolean | null;
+  rollbackReason: string | null;
+  missingInformation: string[] | null;
+  processingDurationMs: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export const aiAnalysisApi = {
+  get: (projectId: string, releaseId: string, deploymentId: string, incidentId: string) =>
+    fetchWithAuth<AiAnalysis | null>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/incidents/${incidentId}/analysis`
+    ),
+  trigger: (projectId: string, releaseId: string, deploymentId: string, incidentId: string) =>
+    fetchWithAuth<{ queued: boolean }>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/incidents/${incidentId}/analysis/trigger`,
+      { method: "POST" }
+    ),
 };

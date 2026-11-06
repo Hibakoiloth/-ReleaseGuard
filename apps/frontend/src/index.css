@@ -132,3 +132,8 @@ button { font-family: inherit; }
   to   { opacity: 1; transform: translateY(0); }
 }
 .rg-page { animation: fadeUp 0.30s ease both; }
+
+/* ── Spinner ─────────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

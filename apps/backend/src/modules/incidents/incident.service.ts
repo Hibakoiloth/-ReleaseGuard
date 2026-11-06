@@ -1,4 +1,5 @@
 import { incidentRepository } from "./incident.repository";
+import { aiAnalysisService } from "../ai-analysis/ai-analysis.service";
 import type { Incident } from "./incident.types";
 
 export const incidentService = {
@@ -6,12 +7,16 @@ export const incidentService = {
     deploymentId: string,
     description: string
   ): Promise<Incident> {
-    return incidentRepository.create(
+    const incident = await incidentRepository.create(
       deploymentId,
       "APPLICATION_UNAVAILABLE",
       "HIGH",
       description
     );
+    setImmediate(() => {
+      aiAnalysisService.analyzeIncident(incident.id).catch(() => {});
+    });
+    return incident;
   },
 
   async list(deploymentId: string): Promise<Incident[]> {

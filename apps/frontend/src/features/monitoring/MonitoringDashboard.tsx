@@ -238,6 +238,7 @@ export function MonitoringDashboard() {
           <div style={{ display: "grid", gap: "0.875rem" }}>
             {incidents.map((inc) => {
               const isOpen = inc.status === "OPEN";
+              const incidentPath = `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/incidents/${inc.id}`;
               return (
                 <div
                   key={inc.id}
@@ -275,9 +276,25 @@ export function MonitoringDashboard() {
                   <p style={{ margin: "0.5rem 0 0.3rem", fontSize: "0.875rem", color: "#6b4f65", lineHeight: 1.5 }}>
                     {inc.description}
                   </p>
-                  <p style={{ fontSize: "0.75rem", color: "#B89AAE" }}>
-                    {new Date(inc.createdAt).toLocaleString()}
-                  </p>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
+                    <p style={{ fontSize: "0.75rem", color: "#B89AAE", margin: 0 }}>
+                      {new Date(inc.createdAt).toLocaleString()}
+                    </p>
+                    <Link
+                      to={incidentPath}
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#D96AA8",
+                        textDecoration: "none",
+                        border: "1px solid rgba(242,197,220,0.7)",
+                        borderRadius: "6px",
+                        padding: "0.2rem 0.6rem",
+                        fontWeight: 600,
+                      }}
+                    >
+                      View analysis →
+                    </Link>
+                  </div>
                 </div>
               );
             })}

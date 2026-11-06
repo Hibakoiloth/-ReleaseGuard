@@ -23,4 +23,13 @@ export const config = {
   get supabaseSecretKey() {
     return process.env.SUPABASE_SECRET_KEY ?? "";
   },
+  get ollamaBaseUrl() {
+    return process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+  },
+  get ollamaModel() {
+    return process.env.OLLAMA_MODEL ?? "llama3.1:8b";
+  },
+  get ollamaTimeoutMs() {
+    return Number(process.env.OLLAMA_TIMEOUT_MS) || 120000;
+  },
 };

@@ -9,6 +9,8 @@ import { testRoutes } from "./modules/tests/test.routes";
 import { deploymentRoutes } from "./modules/deployments/deployment.routes";
 import { monitoringRoutes } from "./modules/monitoring/monitoring.routes";
 import { incidentRoutes } from "./modules/incidents/incident.routes";
+import { aiAnalysisRoutes } from "./modules/ai-analysis/ai-analysis.routes";
+import { ollamaProvider } from "./modules/ai-analysis/providers/ollama.provider";
 import { monitoringManager } from "./infrastructure/scheduler/monitoring.manager";
 import { errorHandler } from "./shared/errors";
 import { authenticate } from "./plugins/auth";
@@ -39,8 +41,18 @@ export async function buildApp(): Promise<FastifyInstance> {
       await api.register(deploymentRoutes, { prefix: "/projects" });
       await api.register(monitoringRoutes, { prefix: "/projects" });
       await api.register(incidentRoutes, { prefix: "/projects" });
+      await api.register(aiAnalysisRoutes, { prefix: "/projects" });
     },
     { prefix: "/api" }
+  );
+
+  app.get(
+    "/api/ai/status",
+    { preHandler: [authenticate] },
+    async () => {
+      const available = await ollamaProvider.checkAvailability();
+      return { available };
+    }
   );
 
   app.addHook("onReady", async () => {
