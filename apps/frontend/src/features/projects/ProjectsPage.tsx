@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { projectsApi, type Project } from "../../lib/api";
 import { Layout } from "../../components/Layout";
+import {
+  glassCard,
+  linkBtnPrimary,
+  pageTitle,
+  mutedText,
+  errorText,
+  projectBadgeStyle,
+} from "../../design/tokens";
 
 export function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -19,19 +27,22 @@ export function ProjectsPage() {
   return (
     <Layout>
       <div style={rowStyle}>
-        <h1 style={titleStyle}>Projects</h1>
-        <Link to="/projects/new" style={btnStyle}>
+        <h1 style={pageTitle}>Projects</h1>
+        <Link to="/projects/new" style={linkBtnPrimary} className="rg-btn-primary">
           + New project
         </Link>
       </div>
 
-      {loading && <p style={mutedStyle}>Loading…</p>}
-      {error && <p style={errorStyle}>{error}</p>}
+      {loading && <p style={mutedText}>Loading…</p>}
+      {error && <p style={{ ...errorText, marginTop: "0.5rem" }}>{error}</p>}
 
       {!loading && !error && projects.length === 0 && (
-        <div style={emptyStyle}>
-          <p>No projects yet.</p>
-          <Link to="/projects/new" style={btnStyle}>
+        <div style={emptyState}>
+          <div style={emptyIcon}>⬡</div>
+          <p style={{ ...mutedText, marginBottom: "1.25rem" }}>
+            No projects yet. Create one to get started.
+          </p>
+          <Link to="/projects/new" style={linkBtnPrimary} className="rg-btn-primary">
             Create your first project
           </Link>
         </div>
@@ -39,10 +50,15 @@ export function ProjectsPage() {
 
       <div style={gridStyle}>
         {projects.map((p) => (
-          <Link key={p.id} to={`/projects/${p.id}`} style={cardStyle}>
-            <div style={cardHeaderStyle}>
-              <span style={cardNameStyle}>{p.name}</span>
-              <span style={badgeStyle(p.status)}>{p.status}</span>
+          <Link
+            key={p.id}
+            to={`/projects/${p.id}`}
+            className="rg-link-card"
+            style={{ ...glassCard, ...cardBase }}
+          >
+            <div style={cardHeader}>
+              <span style={cardName}>{p.name}</span>
+              <span style={projectBadgeStyle(p.status)}>{p.status}</span>
             </div>
             {p.description && (
               <p style={descStyle}>{p.description}</p>
@@ -59,76 +75,62 @@ const rowStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  marginBottom: "1.5rem",
+  marginBottom: "1.75rem",
 };
 
-const titleStyle: React.CSSProperties = { margin: 0, fontSize: "1.5rem" };
-
-const btnStyle: React.CSSProperties = {
-  background: "#0f3460",
-  color: "#fff",
-  padding: "0.5rem 1rem",
-  borderRadius: "6px",
-  textDecoration: "none",
-  fontSize: "0.875rem",
-  fontWeight: 600,
-};
-
-const mutedStyle: React.CSSProperties = { color: "#888" };
-const errorStyle: React.CSSProperties = { color: "#c0392b" };
-
-const emptyStyle: React.CSSProperties = {
+const emptyState: React.CSSProperties = {
+  ...glassCard,
+  padding: "4rem 2rem",
   textAlign: "center",
-  padding: "4rem 1rem",
-  color: "#888",
+  marginTop: "2rem",
+};
+
+const emptyIcon: React.CSSProperties = {
+  fontSize: "3rem",
+  color: "#EC8FC3",
+  marginBottom: "0.875rem",
+  display: "block",
 };
 
 const gridStyle: React.CSSProperties = {
   display: "grid",
-  gap: "1rem",
+  gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+  gap: "1.25rem",
 };
 
-const cardStyle: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e5e5e5",
-  borderRadius: "8px",
-  padding: "1.25rem",
+const cardBase: React.CSSProperties = {
+  padding: "1.5rem",
   textDecoration: "none",
   color: "inherit",
   display: "block",
 };
 
-const cardHeaderStyle: React.CSSProperties = {
+const cardHeader: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: "0.5rem",
+  alignItems: "flex-start",
+  marginBottom: "0.625rem",
+  gap: "0.75rem",
 };
 
-const cardNameStyle: React.CSSProperties = {
-  fontWeight: 600,
+const cardName: React.CSSProperties = {
+  fontWeight: 700,
   fontSize: "1rem",
+  color: "#45283E",
 };
 
 const descStyle: React.CSSProperties = {
-  margin: "0 0 0.5rem",
   fontSize: "0.875rem",
-  color: "#555",
+  color: "#95758A",
+  marginBottom: "0.625rem",
+  lineHeight: 1.5,
 };
 
 const repoStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: "0.8rem",
-  color: "#888",
+  fontSize: "0.78rem",
+  color: "#B89AAE",
+  fontFamily: "ui-monospace, Consolas, monospace",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 };
-
-function badgeStyle(status: string): React.CSSProperties {
-  return {
-    fontSize: "0.75rem",
-    padding: "0.2rem 0.6rem",
-    borderRadius: "12px",
-    background: status === "ACTIVE" ? "#d1fae5" : "#f3f4f6",
-    color: status === "ACTIVE" ? "#065f46" : "#6b7280",
-    fontWeight: 600,
-  };
-}

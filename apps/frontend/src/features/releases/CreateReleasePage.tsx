@@ -3,6 +3,13 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { releasesApi } from "../../lib/api";
 import { Layout } from "../../components/Layout";
 import { formStyles as s } from "../../components/formStyles";
+import {
+  glassCard,
+  btnPrimary,
+  btnGhost,
+  pageTitle,
+  backLink,
+} from "../../design/tokens";
 
 export function CreateReleasePage() {
   const { id: projectId } = useParams<{ id: string }>();
@@ -32,11 +39,11 @@ export function CreateReleasePage() {
   return (
     <Layout>
       <div style={{ maxWidth: "480px" }}>
-        <Link to={`/projects/${projectId}`} style={backStyle}>
+        <Link to={`/projects/${projectId}`} style={backLink}>
           ← Back to project
         </Link>
-        <h1 style={{ margin: "0.5rem 0 1.5rem" }}>New release</h1>
-        <div style={formCard}>
+        <h1 style={{ ...pageTitle, marginBottom: "1.75rem" }}>New release</h1>
+        <div style={{ ...glassCard, padding: "2rem" }}>
           <form onSubmit={handleSubmit}>
             <div style={s.field}>
               <label style={s.label}>Version *</label>
@@ -47,6 +54,7 @@ export function CreateReleasePage() {
                 required
                 placeholder="1.0.0"
                 style={s.input}
+                className="rg-input"
               />
             </div>
             <div style={s.field}>
@@ -58,21 +66,24 @@ export function CreateReleasePage() {
                 placeholder="abc1234"
                 maxLength={40}
                 style={s.input}
+                className="rg-input"
               />
             </div>
             {error && <p style={s.error}>{error}</p>}
-            <div style={{ display: "flex", gap: "0.75rem" }}>
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
               <button
                 type="submit"
                 disabled={loading}
-                style={{ ...s.button, width: "auto", padding: "0.6rem 1.5rem" }}
+                style={{ ...btnPrimary, padding: "0.6rem 1.5rem" }}
+                className="rg-btn-primary"
               >
                 {loading ? "Creating…" : "Create release"}
               </button>
               <button
                 type="button"
                 onClick={() => navigate(`/projects/${projectId}`)}
-                style={cancelStyle}
+                style={btnGhost}
+                className="rg-btn-ghost"
               >
                 Cancel
               </button>
@@ -83,26 +94,3 @@ export function CreateReleasePage() {
     </Layout>
   );
 }
-
-const backStyle: React.CSSProperties = {
-  color: "#888",
-  fontSize: "0.875rem",
-  textDecoration: "none",
-  display: "block",
-};
-
-const formCard: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e5e5e5",
-  borderRadius: "8px",
-  padding: "1.75rem",
-};
-
-const cancelStyle: React.CSSProperties = {
-  background: "none",
-  border: "1px solid #ddd",
-  borderRadius: "6px",
-  padding: "0.6rem 1.25rem",
-  cursor: "pointer",
-  fontSize: "1rem",
-};

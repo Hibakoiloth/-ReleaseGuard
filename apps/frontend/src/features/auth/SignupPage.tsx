@@ -1,58 +1,57 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { saveAuth } from "./AuthProvider";
 import { formStyles as s } from "../../components/formStyles";
 
 export function SignupPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
-    if (error) {
-      setError(error.message);
-      setLoading(false);
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
       return;
     }
-    navigate("/projects");
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message ?? "Sign up failed");
+      saveAuth(body.token, body.userId, body.username);
+      navigate("/projects");
+    } catch (err) {
+      setError((err as Error).message);
+      setLoading(false);
+    }
   }
 
   return (
     <main style={s.page}>
       <div style={s.card}>
         <h1 style={s.logo}>ReleaseGuard</h1>
-        <h2 style={s.heading}>Create account</h2>
+        <p style={s.heading}>Create your account</p>
         <form onSubmit={handleSubmit}>
           <div style={s.field}>
-            <label style={s.label}>Full name</label>
+            <label style={s.label}>Username</label>
             <input
               type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              style={s.input}
-              autoComplete="name"
-            />
-          </div>
-          <div style={s.field}>
-            <label style={s.label}>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
+              minLength={3}
               style={s.input}
-              autoComplete="email"
+              className="rg-input"
+              autoComplete="username"
             />
           </div>
           <div style={s.field}>
@@ -62,18 +61,40 @@ export function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={8}
+              minLength={6}
               style={s.input}
+              className="rg-input"
+              autoComplete="new-password"
+            />
+          </div>
+          <div style={s.field}>
+            <label style={s.label}>Confirm password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+              style={s.input}
+              className="rg-input"
               autoComplete="new-password"
             />
           </div>
           {error && <p style={s.error}>{error}</p>}
-          <button type="submit" disabled={loading} style={s.button}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={s.button}
+            className="rg-btn-primary"
+          >
             {loading ? "Creating account…" : "Sign up"}
           </button>
         </form>
         <p style={s.hint}>
-          Already have an account? <Link to="/login">Sign in</Link>
+          Already have an account?{" "}
+          <Link to="/login" style={{ color: "#D96AA8", fontWeight: 700 }}>
+            Sign in
+          </Link>
         </p>
       </div>
     </main>

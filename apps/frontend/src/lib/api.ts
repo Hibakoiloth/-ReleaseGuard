@@ -1,18 +1,23 @@
-import { supabase } from "./supabase";
-
 const BASE = "/api";
+
+function getToken(): string | null {
+  try {
+    const raw = localStorage.getItem("rg_auth");
+    return raw ? (JSON.parse(raw) as { token: string }).token : null;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchWithAuth<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const token = getToken();
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
-    ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...init?.headers,
   };
 
@@ -148,5 +153,39 @@ export const deploymentsApi = {
   list: (projectId: string, releaseId: string) =>
     fetchWithAuth<Deployment[]>(
       `/projects/${projectId}/releases/${releaseId}/deployments`
+    ),
+};
+
+export interface MonitoringRecord {
+  id: string;
+  deploymentId: string;
+  status: "HEALTHY" | "UNHEALTHY";
+  responseTimeMs: number | null;
+  errorMessage: string | null;
+  recordedAt: string;
+}
+
+export interface Incident {
+  id: string;
+  deploymentId: string;
+  type: string;
+  severity: string;
+  status: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const monitoringApi = {
+  list: (projectId: string, releaseId: string, deploymentId: string, limit = 20) =>
+    fetchWithAuth<MonitoringRecord[]>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/monitoring?limit=${limit}`
+    ),
+};
+
+export const incidentsApi = {
+  list: (projectId: string, releaseId: string, deploymentId: string) =>
+    fetchWithAuth<Incident[]>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/incidents`
     ),
 };

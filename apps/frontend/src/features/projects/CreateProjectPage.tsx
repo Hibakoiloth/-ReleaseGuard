@@ -3,6 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { projectsApi } from "../../lib/api";
 import { Layout } from "../../components/Layout";
 import { formStyles as s } from "../../components/formStyles";
+import {
+  glassCard,
+  btnPrimary,
+  btnGhost,
+  pageTitle,
+} from "../../design/tokens";
 
 const DEFAULTS = {
   name: "",
@@ -54,15 +60,16 @@ export function CreateProjectPage() {
         onChange={(e) => set(key, e.target.value)}
         placeholder={placeholder}
         style={s.input}
+        className="rg-input"
       />
     </div>
   );
 
   return (
     <Layout>
-      <div style={{ maxWidth: "640px" }}>
-        <h1 style={{ marginBottom: "1.5rem" }}>New project</h1>
-        <div style={formCard}>
+      <div style={{ maxWidth: "660px" }}>
+        <h1 style={{ ...pageTitle, marginBottom: "1.75rem" }}>New project</h1>
+        <div style={{ ...glassCard, padding: "2rem" }}>
           <form onSubmit={handleSubmit}>
             {field("Project name *", "name")}
             <div style={s.field}>
@@ -71,6 +78,7 @@ export function CreateProjectPage() {
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
                 style={s.textarea}
+                className="rg-input"
               />
             </div>
             {field("Repository URL *", "repositoryUrl", "url", "https://github.com/org/repo")}
@@ -79,14 +87,20 @@ export function CreateProjectPage() {
             {field("Dockerfile path *", "dockerfilePath", "text", "Dockerfile")}
             {field("Health check path *", "healthCheckPath", "text", "/health")}
             {error && <p style={s.error}>{error}</p>}
-            <div style={{ display: "flex", gap: "0.75rem" }}>
-              <button type="submit" disabled={loading} style={{ ...s.button, width: "auto", padding: "0.6rem 1.5rem" }}>
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ ...btnPrimary, padding: "0.6rem 1.5rem" }}
+                className="rg-btn-primary"
+              >
                 {loading ? "Creating…" : "Create project"}
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/projects")}
-                style={cancelStyle}
+                style={btnGhost}
+                className="rg-btn-ghost"
               >
                 Cancel
               </button>
@@ -97,19 +111,3 @@ export function CreateProjectPage() {
     </Layout>
   );
 }
-
-const formCard: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid #e5e5e5",
-  borderRadius: "8px",
-  padding: "1.75rem",
-};
-
-const cancelStyle: React.CSSProperties = {
-  background: "none",
-  border: "1px solid #ddd",
-  borderRadius: "6px",
-  padding: "0.6rem 1.25rem",
-  cursor: "pointer",
-  fontSize: "1rem",
-};

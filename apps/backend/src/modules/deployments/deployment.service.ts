@@ -1,7 +1,7 @@
-import { join } from "path";
 import { dockerService } from "../../infrastructure/docker/docker.service";
 import { deploymentRepository } from "./deployment.repository";
 import { releaseRepository } from "../releases/release.repository";
+import { monitoringManager } from "../../infrastructure/scheduler/monitoring.manager";
 import { logger } from "../../infrastructure/logging/logger";
 import type { Deployment } from "./deployment.types";
 import type { Project } from "../projects/project.types";
@@ -48,7 +48,11 @@ export const deploymentService = {
       await deploymentRepository.update(deployment.id, { status: "RUNNING" });
       await releaseRepository.adminUpdateStatus(releaseId, "SUCCESS");
 
-      return (await deploymentRepository.findById(deployment.id, releaseId))!;
+      const finalDeployment = (await deploymentRepository.findById(deployment.id, releaseId))!;
+      const monitorUrl = `http://127.0.0.1:${containerInfo.hostPort}${project.healthCheckPath}`;
+      monitoringManager.start(finalDeployment.id, monitorUrl);
+
+      return finalDeployment;
     } catch (err) {
       logger.error(err, "Deployment failed");
       await deploymentRepository

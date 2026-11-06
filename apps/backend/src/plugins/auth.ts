@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { supabaseAdmin } from "../infrastructure/supabase/supabase.client";
+import { authRepository } from "../modules/auth/auth.repository";
 import { UnauthorizedError } from "../shared/errors";
 
 declare module "fastify" {
@@ -18,14 +18,8 @@ export async function authenticate(
   }
 
   const token = authHeader.slice(7);
-  const {
-    data: { user },
-    error,
-  } = await supabaseAdmin.auth.getUser(token);
+  const user = await authRepository.findSessionUser(token);
+  if (!user) throw new UnauthorizedError("Invalid or expired token");
 
-  if (error || !user) {
-    throw new UnauthorizedError("Invalid or expired token");
-  }
-
-  request.user = { id: user.id, email: user.email ?? "" };
+  request.user = { id: user.id, email: user.username };
 }

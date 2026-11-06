@@ -129,6 +129,18 @@ export type Database = {
           },
         ]
       }
+      app_users: {
+        Row: { id: string; username: string; password: string; created_at: string }
+        Insert: { id?: string; username: string; password: string; created_at?: string }
+        Update: { id?: string; username?: string; password?: string; created_at?: string }
+        Relationships: []
+      }
+      sessions: {
+        Row: { id: string; user_id: string; token: string; created_at: string }
+        Insert: { id?: string; user_id: string; token: string; created_at?: string }
+        Update: { id?: string; user_id?: string; token?: string; created_at?: string }
+        Relationships: []
+      }
       deployments: {
         Row: {
           completed_at: string | null
@@ -181,6 +193,7 @@ export type Database = {
           id: string
           severity: string
           status: string
+          type: string
           updated_at: string
         }
         Insert: {
@@ -190,6 +203,7 @@ export type Database = {
           id?: string
           severity: string
           status?: string
+          type: string
           updated_at?: string
         }
         Update: {
@@ -214,6 +228,7 @@ export type Database = {
       monitoring_records: {
         Row: {
           deployment_id: string
+          error_message: string | null
           id: string
           recorded_at: string
           response_time_ms: number | null
@@ -221,6 +236,7 @@ export type Database = {
         }
         Insert: {
           deployment_id: string
+          error_message?: string | null
           id?: string
           recorded_at?: string
           response_time_ms?: number | null
@@ -228,6 +244,7 @@ export type Database = {
         }
         Update: {
           deployment_id?: string
+          error_message?: string | null
           id?: string
           recorded_at?: string
           response_time_ms?: number | null
