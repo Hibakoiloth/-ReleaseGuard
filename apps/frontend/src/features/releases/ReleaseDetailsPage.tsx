@@ -122,13 +122,14 @@ export function ReleaseDetailsPage() {
       </div>
 
       {/* Progress pipeline */}
-      {!isTerminal && (
+      {(release.status !== "FAILED" && release.status !== "ROLLED_BACK") && (
         <div style={{ ...glassCard, padding: "1.5rem 2rem", marginBottom: "1.75rem", overflowX: "auto" }}>
           <div style={pipelineRow}>
             {STATUS_ORDER.map((step, idx) => {
-              const current = STATUS_ORDER.indexOf(release.status);
-              const done   = idx < current;
-              const active = idx === current;
+              const isSuccess = release.status === "SUCCESS";
+              const current = isSuccess ? STATUS_ORDER.length : STATUS_ORDER.indexOf(release.status);
+              const done   = isSuccess || idx < current;
+              const active = !isSuccess && idx === current;
               const dotColor = done
                 ? "#22c55e"
                 : active
@@ -183,6 +184,36 @@ export function ReleaseDetailsPage() {
       {isFailed && (
         <div style={failedBanner}>
           Release {release.status.toLowerCase().replace("_", " ")}.
+        </div>
+      )}
+
+      {release.status === "SUCCESS" && (
+        <div style={{
+          background: "rgba(134,239,172,0.20)",
+          color: "#166534",
+          border: "1px solid rgba(74,222,128,0.40)",
+          padding: "0.75rem 1rem",
+          borderRadius: "12px",
+          marginBottom: "1.5rem",
+          fontWeight: 600,
+          fontSize: "0.875rem",
+        }}>
+          ✓ Release deployed successfully and is running.
+        </div>
+      )}
+
+      {release.status === "ROLLED_BACK" && (
+        <div style={{
+          background: "rgba(209,213,219,0.30)",
+          color: "#374151",
+          border: "1px solid rgba(156,163,175,0.40)",
+          padding: "0.75rem 1rem",
+          borderRadius: "12px",
+          marginBottom: "1.5rem",
+          fontWeight: 600,
+          fontSize: "0.875rem",
+        }}>
+          ↩ Release was rolled back.
         </div>
       )}
 

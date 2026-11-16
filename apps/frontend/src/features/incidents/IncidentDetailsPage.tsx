@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { incidentsApi, aiAnalysisApi, type Incident, type AiAnalysis } from "../../lib/api";
+import {
+  incidentsApi, aiAnalysisApi, recoveryActionsApi, rollbackApi,
+  type Incident, type AiAnalysis, type RecoveryAction,
+} from "../../lib/api";
 import { Layout } from "../../components/Layout";
 import {
   glassCard,
@@ -29,9 +32,11 @@ export function IncidentDetailsPage() {
 
   const [incident, setIncident] = useState<Incident | null>(null);
   const [analysis, setAnalysis] = useState<AiAnalysis | null | undefined>(undefined);
+  const [recovery, setRecovery] = useState<RecoveryAction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [triggering, setTriggering] = useState(false);
+  const [rollingBack, setRollingBack] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function stopPolling() {
@@ -51,10 +56,12 @@ export function IncidentDetailsPage() {
     Promise.all([
       incidentsApi.get(projectId, releaseId, deploymentId, incidentId),
       aiAnalysisApi.get(projectId, releaseId, deploymentId, incidentId),
+      recoveryActionsApi.listByIncident(projectId, releaseId, deploymentId, incidentId),
     ])
-      .then(([inc, a]) => {
+      .then(([inc, a, actions]) => {
         setIncident(inc);
         setAnalysis(a);
+        setRecovery(actions[0] ?? null);
         if (a && IN_PROGRESS.has(a.status)) {
           pollRef.current = setInterval(() => fetchAnalysis().catch(() => {}), POLL_MS);
         }
@@ -79,6 +86,20 @@ export function IncidentDetailsPage() {
       setError((e as Error).message);
     } finally {
       setTriggering(false);
+    }
+  }
+
+  async function handleRollback() {
+    if (!projectId || !releaseId || !deploymentId || !incidentId) return;
+    setRollingBack(true);
+    try {
+      await rollbackApi.trigger(projectId, releaseId, deploymentId, incidentId);
+      const actions = await recoveryActionsApi.listByIncident(projectId, releaseId, deploymentId, incidentId);
+      setRecovery(actions[0] ?? null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRollingBack(false);
     }
   }
 
@@ -125,7 +146,140 @@ export function IncidentDetailsPage() {
           onTrigger={handleTrigger}
         />
       </div>
+
+      {/* Recovery panel */}
+      <div style={{ ...glassCard, padding: "1.5rem" }}>
+        <h2 style={{ ...sectionTitle, marginBottom: "1.25rem" }}>Recovery</h2>
+        <RecoveryPanel
+          recovery={recovery}
+          incidentResolved={incident.status === "RESOLVED"}
+          rollingBack={rollingBack}
+          onRollback={handleRollback}
+        />
+      </div>
     </Layout>
+  );
+}
+
+function RecoveryPanel({
+  recovery,
+  incidentResolved,
+  rollingBack,
+  onRollback,
+}: {
+  recovery: RecoveryAction | null;
+  incidentResolved: boolean;
+  rollingBack: boolean;
+  onRollback: () => void;
+}) {
+  if (incidentResolved && !recovery) {
+    return <p style={{ ...mutedText, margin: 0 }}>Incident resolved.</p>;
+  }
+
+  if (!recovery) {
+    return (
+      <div>
+        <p style={{ ...mutedText, marginBottom: "1rem" }}>
+          No automated recovery action yet. You can trigger a manual rollback.
+        </p>
+        <button
+          onClick={onRollback}
+          disabled={rollingBack}
+          style={btnPrimary}
+          className="rg-btn-primary"
+        >
+          {rollingBack ? "Queuing rollback…" : "Trigger Rollback"}
+        </button>
+      </div>
+    );
+  }
+
+  const statusMap: Record<string, [string, string, string]> = {
+    PENDING:          ["rgba(253,230,138,0.42)", "#92400e", "rgba(251,191,36,0.45)"],
+    PENDING_APPROVAL: ["rgba(147,197,253,0.42)", "#1d4ed8", "rgba(96,165,250,0.45)"],
+    IN_PROGRESS:      ["rgba(196,181,253,0.42)", "#5b21b6", "rgba(167,139,250,0.45)"],
+    COMPLETED:        ["rgba(134,239,172,0.42)", "#166534", "rgba(74,222,128,0.45)"],
+    FAILED:           ["rgba(252,165,165,0.42)", "#991b1b", "rgba(248,113,113,0.45)"],
+    REJECTED:         ["rgba(209,213,219,0.50)", "#374151", "rgba(156,163,175,0.55)"],
+  };
+  const [bg, color, border] = statusMap[recovery.status] ?? statusMap.PENDING;
+  const statusStyle: React.CSSProperties = {
+    fontSize: "0.68rem", fontWeight: 700, padding: "0.22rem 0.65rem",
+    borderRadius: "20px", letterSpacing: "0.05em", display: "inline-block",
+    background: bg, color, border: `1px solid ${border}`,
+  };
+
+  return (
+    <div style={{ display: "grid", gap: "0.75rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+        <span style={{
+          fontSize: "0.68rem", fontWeight: 700, padding: "0.22rem 0.65rem",
+          borderRadius: "20px", letterSpacing: "0.05em",
+          background: "rgba(147,197,253,0.42)", color: "#1d4ed8",
+          border: "1px solid rgba(96,165,250,0.45)",
+        }}>
+          {recovery.actionType}
+        </span>
+        <span style={statusStyle}>{recovery.status}</span>
+      </div>
+
+      {recovery.reason && (
+        <p style={{ fontSize: "0.875rem", color: "#6b4f65", margin: 0, lineHeight: 1.5 }}>
+          {recovery.reason}
+        </p>
+      )}
+
+      {recovery.status === "PENDING_APPROVAL" && (
+        <div style={{
+          background: "rgba(147,197,253,0.15)",
+          border: "1px solid rgba(96,165,250,0.35)",
+          borderRadius: "10px",
+          padding: "0.875rem 1rem",
+        }}>
+          <p style={{ margin: 0, fontSize: "0.875rem", color: "#1d4ed8" }}>
+            Waiting for approval. Go to{" "}
+            <Link to="/approvals" style={{ color: "#1d4ed8", fontWeight: 600 }}>
+              Approvals
+            </Link>{" "}
+            to review.
+          </p>
+        </div>
+      )}
+
+      {recovery.status === "IN_PROGRESS" && (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <div style={{
+            width: 16, height: 16, borderRadius: "50%",
+            border: "2px solid rgba(167,139,250,0.5)",
+            borderTopColor: "#7c3aed",
+            animation: "spin 0.8s linear infinite", flexShrink: 0,
+          }} />
+          <span style={mutedText}>Rollback in progress…</span>
+        </div>
+      )}
+
+      {recovery.status === "COMPLETED" && (
+        <p style={{ fontSize: "0.875rem", color: "#166534", margin: 0 }}>
+          ✓ Recovery completed successfully.
+        </p>
+      )}
+
+      {(recovery.status === "FAILED" || recovery.status === "REJECTED") && (
+        <div>
+          <p style={{ fontSize: "0.875rem", color: "#991b1b", margin: "0 0 0.875rem" }}>
+            Recovery {recovery.status.toLowerCase()}. You can retry a manual rollback.
+          </p>
+          <button
+            onClick={onRollback}
+            disabled={rollingBack}
+            style={btnPrimary}
+            className="rg-btn-primary"
+          >
+            {rollingBack ? "Queuing rollback…" : "Retry Rollback"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

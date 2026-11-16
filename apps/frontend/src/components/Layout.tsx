@@ -1,10 +1,20 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthProvider";
+import { useEffect, useState } from "react";
+import { approvalsApi } from "../lib/api";
 import type { ReactNode, CSSProperties } from "react";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    approvalsApi.listPending()
+      .then((items) => setPendingCount(items.length))
+      .catch(() => {});
+  }, [user]);
 
   async function handleSignOut() {
     await signOut();
@@ -24,6 +34,12 @@ export function Layout({ children }: { children: ReactNode }) {
             ReleaseGuard
           </Link>
           <div style={headerRight}>
+            <Link to="/approvals" style={navLink}>
+              Approvals
+              {pendingCount > 0 && (
+                <span style={pendingBadge}>{pendingCount}</span>
+              )}
+            </Link>
             {user && <span style={userChip}>{user.username}</span>}
             <button onClick={handleSignOut} className="rg-btn-ghost" style={signOutBtn}>
               Sign out
@@ -101,6 +117,26 @@ const signOutBtn: CSSProperties = {
   cursor: "pointer",
   color: "#95758A",
   fontWeight: 500,
+};
+
+const navLink: CSSProperties = {
+  fontSize: "0.82rem",
+  fontWeight: 600,
+  color: "#95758A",
+  textDecoration: "none",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "0.35rem",
+};
+
+const pendingBadge: CSSProperties = {
+  background: "linear-gradient(135deg, #EC8FC3 0%, #D96AA8 100%)",
+  color: "#fff",
+  borderRadius: "20px",
+  fontSize: "0.62rem",
+  fontWeight: 700,
+  padding: "0.1rem 0.45rem",
+  lineHeight: 1.4,
 };
 
 const mainContent: CSSProperties = {

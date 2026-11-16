@@ -8,7 +8,7 @@ import type { DockerAdapter, BuildImageOptions, StartContainerOptions, Container
 const DEFAULT_MEMORY_MB = 512;
 const DEFAULT_CPU_SHARES = 512;
 const RELEASEGUARD_NETWORK = "releaseguard-net";
-const CONTAINER_PORT = 3000;
+const CONTAINER_PORT = 3001;
 
 const docker = new Dockerode();
 

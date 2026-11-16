@@ -403,24 +403,33 @@ export type Database = {
         Row: {
           action_type: string
           created_at: string
+          deployment_id: string | null
           id: string
           incident_id: string
+          metadata: unknown | null
+          reason: string | null
           status: string
           updated_at: string
         }
         Insert: {
           action_type: string
           created_at?: string
+          deployment_id?: string | null
           id?: string
           incident_id: string
+          metadata?: unknown | null
+          reason?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           action_type?: string
           created_at?: string
+          deployment_id?: string | null
           id?: string
           incident_id?: string
+          metadata?: unknown | null
+          reason?: string | null
           status?: string
           updated_at?: string
         }

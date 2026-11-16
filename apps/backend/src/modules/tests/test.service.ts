@@ -1,6 +1,6 @@
-import { mkdtemp, rm } from "fs/promises";
+import { mkdtemp, rm, readdir } from "fs/promises";
 import { existsSync } from "fs";
-import { join } from "path";
+import { join, basename } from "path";
 import { tmpdir } from "os";
 import { execute } from "../../infrastructure/process/process.executor";
 import { testRepository } from "./test.repository";
@@ -18,6 +18,16 @@ function detectInstallCommand(cwd: string): [string, string[]] {
 function parseCommand(cmd: string): [string, string[]] {
   const parts = cmd.trim().split(/\s+/);
   return [parts[0], parts.slice(1)];
+}
+
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".next", "build", "coverage"]);
+
+async function findSubPackageDirs(rootDir: string): Promise<string[]> {
+  const entries = await readdir(rootDir, { withFileTypes: true });
+  return entries
+    .filter((e) => e.isDirectory() && !SKIP_DIRS.has(e.name))
+    .map((e) => join(rootDir, e.name))
+    .filter((sub) => existsSync(join(sub, "package.json")));
 }
 
 export const testService = {
@@ -72,6 +82,24 @@ export const testService = {
         const status = install.timedOut ? "TIMED_OUT" : "FAILED";
         await this._fail(releaseId, execution.id, status, output, install.exitCode);
         return testRepository.findById(execution.id, releaseId) as Promise<TestExecution>;
+      }
+
+      // Step 2b: install sub-package dependencies (e.g. client/ and server/ directories)
+      for (const subDir of await findSubPackageDirs(workspace)) {
+        output += `\n--- Installing dependencies in ${basename(subDir)} ---\n`;
+        const subInstall = await execute({
+          command: "npm",
+          args: ["install"],
+          cwd: subDir,
+          timeoutMs: 180_000,
+        });
+        output += subInstall.stdout;
+        if (subInstall.stderr) output += subInstall.stderr;
+        if (subInstall.exitCode !== 0 || subInstall.timedOut) {
+          const status = subInstall.timedOut ? "TIMED_OUT" : "FAILED";
+          await this._fail(releaseId, execution.id, status, output, subInstall.exitCode);
+          return testRepository.findById(execution.id, releaseId) as Promise<TestExecution>;
+        }
       }
 
       // Step 3: test command

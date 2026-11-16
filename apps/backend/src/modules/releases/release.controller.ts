@@ -29,8 +29,12 @@ async function runPipeline(
   const workspacePath = build.workspacePath;
 
   try {
-    const test = await testService.execute(releaseId, repositoryUrl, testCommand);
-    if (test.status !== "SUCCESS") return;
+    if (testCommand.trim()) {
+      const test = await testService.execute(releaseId, repositoryUrl, testCommand);
+      if (test.status !== "SUCCESS") return;
+    } else {
+      await releaseService.advanceToDeploying(releaseId);
+    }
 
     if (workspacePath) {
       await deploymentService.deploy(releaseId, project, version, workspacePath);

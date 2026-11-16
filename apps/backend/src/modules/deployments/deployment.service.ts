@@ -2,6 +2,7 @@ import { dockerService } from "../../infrastructure/docker/docker.service";
 import { deploymentRepository } from "./deployment.repository";
 import { releaseRepository } from "../releases/release.repository";
 import { monitoringManager } from "../../infrastructure/scheduler/monitoring.manager";
+import { incidentService } from "../incidents/incident.service";
 import { logger } from "../../infrastructure/logging/logger";
 import type { Deployment } from "./deployment.types";
 import type { Project } from "../projects/project.types";
@@ -59,6 +60,12 @@ export const deploymentService = {
         .update(deployment.id, { status: "FAILED" })
         .catch(() => {});
       await releaseRepository.adminUpdateStatus(releaseId, "FAILED").catch(() => {});
+      setImmediate(() => {
+        const msg = err instanceof Error ? err.message : "Deployment failed";
+        incidentService
+          .open(deployment.id, msg, "DEPLOYMENT_FAILED")
+          .catch(() => {});
+      });
       return (await deploymentRepository.findById(deployment.id, releaseId))!;
     }
   },

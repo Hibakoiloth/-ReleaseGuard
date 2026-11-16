@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/I740376/.claude/projects/-Users-I740376-Desktop-ReleaseGuard/memory/**)",
+      "Read(//Users/I740376/.claude/projects/-Users-I740376-Desktop-releaseguard/memory/**)",
+      "Bash(npx vitest *)"
+    ]
+  }
+}

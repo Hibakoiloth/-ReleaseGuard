@@ -10,6 +10,10 @@ import { deploymentRoutes } from "./modules/deployments/deployment.routes";
 import { monitoringRoutes } from "./modules/monitoring/monitoring.routes";
 import { incidentRoutes } from "./modules/incidents/incident.routes";
 import { aiAnalysisRoutes } from "./modules/ai-analysis/ai-analysis.routes";
+import { policyRoutes } from "./modules/policies/policy.routes";
+import { approvalRoutes } from "./modules/approvals/approval.routes";
+import { rollbackRoutes } from "./modules/rollback/rollback.routes";
+import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 import { ollamaProvider } from "./modules/ai-analysis/providers/ollama.provider";
 import { monitoringManager } from "./infrastructure/scheduler/monitoring.manager";
 import { errorHandler } from "./shared/errors";
@@ -42,6 +46,10 @@ export async function buildApp(): Promise<FastifyInstance> {
       await api.register(monitoringRoutes, { prefix: "/projects" });
       await api.register(incidentRoutes, { prefix: "/projects" });
       await api.register(aiAnalysisRoutes, { prefix: "/projects" });
+      await api.register(policyRoutes, { prefix: "/projects" });
+      await api.register(rollbackRoutes, { prefix: "/projects" });
+      await api.register(approvalRoutes);
+      await api.register(dashboardRoutes);
     },
     { prefix: "/api" }
   );

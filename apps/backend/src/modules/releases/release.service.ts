@@ -49,4 +49,8 @@ export const releaseService = {
     if (!updated) throw new NotFoundError("Release");
     return updated;
   },
+
+  async advanceToDeploying(releaseId: string): Promise<void> {
+    await releaseRepository.adminUpdateStatus(releaseId, "DEPLOYING");
+  },
 };

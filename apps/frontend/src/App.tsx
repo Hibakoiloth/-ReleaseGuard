@@ -10,6 +10,8 @@ import { CreateReleasePage } from "./features/releases/CreateReleasePage";
 import { ReleaseDetailsPage } from "./features/releases/ReleaseDetailsPage";
 import { MonitoringDashboard } from "./features/monitoring/MonitoringDashboard";
 import { IncidentDetailsPage } from "./features/incidents/IncidentDetailsPage";
+import { ApprovalsPage } from "./features/approvals/ApprovalsPage";
+import { DashboardPage } from "./features/dashboard/DashboardPage";
 
 export default function App() {
   return (
@@ -74,8 +76,16 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/approvals"
+          element={
+            <ProtectedRoute>
+              <ApprovalsPage />
+            </ProtectedRoute>
+          }
+        />
 
-        <Route path="/" element={<Navigate to="/projects" replace />} />
+        <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </AuthProvider>

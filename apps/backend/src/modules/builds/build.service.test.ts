@@ -38,6 +38,7 @@ vi.mock("fs", () => ({
 vi.mock("fs/promises", () => ({
   mkdtemp: vi.fn(() => Promise.resolve("/tmp/rg-build-abc")),
   rm: vi.fn(() => Promise.resolve()),
+  readdir: vi.fn(() => Promise.resolve([])),
 }));
 
 import { buildService } from "./build.service";

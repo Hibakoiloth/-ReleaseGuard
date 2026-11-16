@@ -29,6 +29,10 @@ vi.mock("../../infrastructure/logging/logger", () => ({
   logger: { error: vi.fn(), info: vi.fn() },
 }));
 
+vi.mock("../incidents/incident.service", () => ({
+  incidentService: { open: vi.fn().mockResolvedValue(undefined) },
+}));
+
 import { deploymentService } from "./deployment.service";
 import { deploymentRepository } from "./deployment.repository";
 import { releaseRepository } from "../releases/release.repository";

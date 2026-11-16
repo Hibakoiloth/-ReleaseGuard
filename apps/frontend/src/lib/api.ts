@@ -16,7 +16,7 @@ async function fetchWithAuth<T>(
   const token = getToken();
 
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
+    ...(init?.body !== undefined ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...init?.headers,
   };
@@ -226,4 +226,116 @@ export const aiAnalysisApi = {
       `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/incidents/${incidentId}/analysis/trigger`,
       { method: "POST" }
     ),
+};
+
+export interface RecoveryAction {
+  id: string;
+  incidentId: string;
+  deploymentId: string | null;
+  actionType: string;
+  status: string;
+  reason: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Approval {
+  id: string;
+  recoveryActionId: string;
+  decision: string;
+  approvedBy: string | null;
+  createdAt: string;
+}
+
+export interface ApprovalDetail {
+  approval: Approval;
+  recoveryAction: RecoveryAction;
+  aiAnalysis: AiAnalysis | null;
+}
+
+export interface Policy {
+  id: string;
+  projectId: string;
+  name: string;
+  action: string;
+  conditions: { event: string; requireApproval?: boolean };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const approvalsApi = {
+  listPending: () => fetchWithAuth<ApprovalDetail[]>("/approvals"),
+  listHistory: () => fetchWithAuth<ApprovalDetail[]>("/approvals/history"),
+  get: (id: string) => fetchWithAuth<ApprovalDetail>(`/approvals/${id}`),
+  approve: (id: string) =>
+    fetchWithAuth<{ approved: boolean }>(`/approvals/${id}/approve`, { method: "POST" }),
+  reject: (id: string) =>
+    fetchWithAuth<{ rejected: boolean }>(`/approvals/${id}/reject`, { method: "POST" }),
+};
+
+export const policiesApi = {
+  list: (projectId: string) =>
+    fetchWithAuth<Policy[]>(`/projects/${projectId}/policies`),
+  create: (projectId: string, data: { name: string; action: string; conditions: object }) =>
+    fetchWithAuth<Policy>(`/projects/${projectId}/policies`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  delete: (projectId: string, policyId: string) =>
+    fetchWithAuth<void>(`/projects/${projectId}/policies/${policyId}`, { method: "DELETE" }),
+};
+
+export const recoveryActionsApi = {
+  listByIncident: (
+    projectId: string,
+    releaseId: string,
+    deploymentId: string,
+    incidentId: string
+  ) =>
+    fetchWithAuth<RecoveryAction[]>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/incidents/${incidentId}/recovery`
+    ),
+};
+
+export const rollbackApi = {
+  trigger: (
+    projectId: string,
+    releaseId: string,
+    deploymentId: string,
+    incidentId: string
+  ) =>
+    fetchWithAuth<{ recoveryActionId: string; queued: boolean }>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/rollback`,
+      { method: "POST", body: JSON.stringify({ incidentId }) }
+    ),
+};
+
+export interface DashboardSummary {
+  projects: { total: number; active: number; archived: number };
+  releases: { total: number; success: number; failed: number; active: number };
+  deployments: { total: number; running: number; failed: number };
+  incidents: { open: number; resolved: number };
+  approvals: { pending: number };
+  recovery: { total: number; completed: number };
+}
+
+export interface DashboardData {
+  summary: DashboardSummary;
+  recentProjects: Array<{
+    id: string; name: string; status: string;
+    created_at: string; latestReleaseStatus: string | null;
+  }>;
+  recentReleases: Array<{
+    id: string; project_id: string; version: string; status: string;
+    created_at: string; projectName: string;
+  }>;
+  recentIncidents: Array<{
+    id: string; deployment_id: string; type: string;
+    severity: string; status: string; description: string; created_at: string;
+  }>;
+}
+
+export const dashboardApi = {
+  get: () => fetchWithAuth<DashboardData>("/dashboard"),
 };
