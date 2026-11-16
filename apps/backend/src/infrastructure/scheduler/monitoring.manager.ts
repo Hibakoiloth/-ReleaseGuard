@@ -2,29 +2,69 @@ import { supabaseAdmin } from "../supabase/supabase.client";
 import { MonitoringScheduler } from "./monitoring.scheduler";
 import { logger } from "../logging/logger";
 
-const schedulers = new Map<string, MonitoringScheduler>();
+interface SchedulerEntry {
+  scheduler: MonitoringScheduler;
+  url: string;
+  intervalMs: number;
+  paused: boolean;
+}
+
+const schedulers = new Map<string, SchedulerEntry>();
 
 export const monitoringManager = {
   start(deploymentId: string, url: string, intervalMs = 5000): void {
     if (schedulers.has(deploymentId)) return;
     const scheduler = new MonitoringScheduler();
     scheduler.start(deploymentId, url, intervalMs);
-    schedulers.set(deploymentId, scheduler);
+    schedulers.set(deploymentId, { scheduler, url, intervalMs, paused: false });
     logger.info(`Monitoring started for deployment ${deploymentId}`);
   },
 
+  pause(deploymentId: string): void {
+    const entry = schedulers.get(deploymentId);
+    if (!entry || entry.paused) return;
+    entry.scheduler.stop();
+    entry.paused = true;
+    logger.info(`Monitoring paused for deployment ${deploymentId}`);
+  },
+
+  resume(deploymentId: string): void {
+    const entry = schedulers.get(deploymentId);
+    if (!entry || !entry.paused) return;
+    entry.scheduler.start(deploymentId, entry.url, entry.intervalMs);
+    entry.paused = false;
+    logger.info(`Monitoring resumed for deployment ${deploymentId}`);
+  },
+
+  setIntervalMs(deploymentId: string, intervalMs: number): void {
+    const entry = schedulers.get(deploymentId);
+    if (!entry) return;
+    entry.intervalMs = intervalMs;
+    if (!entry.paused) {
+      entry.scheduler.stop();
+      entry.scheduler.start(deploymentId, entry.url, intervalMs);
+    }
+    logger.info(`Monitoring interval set to ${intervalMs}ms for deployment ${deploymentId}`);
+  },
+
+  getStatus(deploymentId: string): { active: boolean; paused: boolean; intervalMs: number } {
+    const entry = schedulers.get(deploymentId);
+    if (!entry) return { active: false, paused: false, intervalMs: 5000 };
+    return { active: true, paused: entry.paused, intervalMs: entry.intervalMs };
+  },
+
   stop(deploymentId: string): void {
-    const scheduler = schedulers.get(deploymentId);
-    if (scheduler) {
-      scheduler.stop();
+    const entry = schedulers.get(deploymentId);
+    if (entry) {
+      entry.scheduler.stop();
       schedulers.delete(deploymentId);
       logger.info(`Monitoring stopped for deployment ${deploymentId}`);
     }
   },
 
   stopAll(): void {
-    for (const [id, scheduler] of schedulers) {
-      scheduler.stop();
+    for (const [id, entry] of schedulers) {
+      entry.scheduler.stop();
       logger.info(`Monitoring stopped for deployment ${id}`);
     }
     schedulers.clear();
@@ -74,3 +114,4 @@ export const monitoringManager = {
     }
   },
 };
+

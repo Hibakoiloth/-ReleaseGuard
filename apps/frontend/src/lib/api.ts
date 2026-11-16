@@ -176,10 +176,35 @@ export interface Incident {
   updatedAt: string;
 }
 
+export interface MonitoringStatus {
+  active: boolean;
+  paused: boolean;
+  intervalMs: number;
+}
+
 export const monitoringApi = {
   list: (projectId: string, releaseId: string, deploymentId: string, limit = 20) =>
     fetchWithAuth<MonitoringRecord[]>(
       `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/monitoring?limit=${limit}`
+    ),
+  getStatus: (projectId: string, releaseId: string, deploymentId: string) =>
+    fetchWithAuth<MonitoringStatus>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/monitoring/status`
+    ),
+  pause: (projectId: string, releaseId: string, deploymentId: string) =>
+    fetchWithAuth<MonitoringStatus>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/monitoring/pause`,
+      { method: "POST" }
+    ),
+  resume: (projectId: string, releaseId: string, deploymentId: string) =>
+    fetchWithAuth<MonitoringStatus>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/monitoring/resume`,
+      { method: "POST" }
+    ),
+  setInterval: (projectId: string, releaseId: string, deploymentId: string, intervalMs: number) =>
+    fetchWithAuth<MonitoringStatus>(
+      `/projects/${projectId}/releases/${releaseId}/deployments/${deploymentId}/monitoring/settings`,
+      { method: "PATCH", body: JSON.stringify({ intervalMs }) }
     ),
 };
 

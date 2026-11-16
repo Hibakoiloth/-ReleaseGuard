@@ -5,6 +5,7 @@ import {
   incidentsApi,
   deploymentsApi,
   type MonitoringRecord,
+  type MonitoringStatus,
   type Incident,
   type Deployment,
 } from "../../lib/api";
@@ -26,7 +27,13 @@ import {
   deployBadgeStyle,
 } from "../../design/tokens";
 
-const POLL_MS = 5000;
+const INTERVAL_OPTIONS = [
+  { label: "5s",   value: 5_000 },
+  { label: "10s",  value: 10_000 },
+  { label: "30s",  value: 30_000 },
+  { label: "1min", value: 60_000 },
+  { label: "5min", value: 300_000 },
+];
 
 export function MonitoringDashboard() {
   const { id: projectId, releaseId, deploymentId } = useParams<{
@@ -35,23 +42,32 @@ export function MonitoringDashboard() {
     deploymentId: string;
   }>();
 
-  const [deployment, setDeployment] = useState<Deployment | null>(null);
-  const [records, setRecords]       = useState<MonitoringRecord[]>([]);
-  const [incidents, setIncidents]   = useState<Incident[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
+  const [deployment, setDeployment]         = useState<Deployment | null>(null);
+  const [records, setRecords]               = useState<MonitoringRecord[]>([]);
+  const [incidents, setIncidents]           = useState<Incident[]>([]);
+  const [monStatus, setMonStatus]           = useState<MonitoringStatus | null>(null);
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState<string | null>(null);
+  const [controlBusy, setControlBusy]       = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchAll() {
     if (!projectId || !releaseId || !deploymentId) return;
-    const [deps, recs, incs] = await Promise.all([
+    const [deps, recs, incs, status] = await Promise.all([
       deploymentsApi.list(projectId, releaseId),
       monitoringApi.list(projectId, releaseId, deploymentId, 20),
       incidentsApi.list(projectId, releaseId, deploymentId),
+      monitoringApi.getStatus(projectId, releaseId, deploymentId),
     ]);
     setDeployment(deps.find((d) => d.id === deploymentId) ?? null);
     setRecords(recs);
     setIncidents(incs);
+    setMonStatus(status);
+  }
+
+  function startPoll(intervalMs: number) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => fetchAll().catch(() => {}), intervalMs);
   }
 
   useEffect(() => {
@@ -59,9 +75,40 @@ export function MonitoringDashboard() {
     fetchAll()
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-    pollRef.current = setInterval(() => fetchAll().catch(() => {}), POLL_MS);
+    startPoll(5_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [projectId, releaseId, deploymentId]);
+
+  async function handlePauseResume() {
+    if (!projectId || !releaseId || !deploymentId || controlBusy) return;
+    setControlBusy(true);
+    try {
+      const next = monStatus?.paused
+        ? await monitoringApi.resume(projectId, releaseId, deploymentId)
+        : await monitoringApi.pause(projectId, releaseId, deploymentId);
+      setMonStatus(next);
+      if (next.paused) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+      } else {
+        startPoll(next.intervalMs);
+      }
+    } finally {
+      setControlBusy(false);
+    }
+  }
+
+  async function handleIntervalChange(intervalMs: number) {
+    if (!projectId || !releaseId || !deploymentId || controlBusy) return;
+    setControlBusy(true);
+    try {
+      const next = await monitoringApi.setInterval(projectId, releaseId, deploymentId, intervalMs);
+      setMonStatus(next);
+      if (!next.paused) startPoll(intervalMs);
+    } finally {
+      setControlBusy(false);
+    }
+  }
 
   if (loading) return <Layout><p style={mutedText}>Loading…</p></Layout>;
   if (error)   return <Layout><p style={errorText}>{error}</p></Layout>;
@@ -70,6 +117,7 @@ export function MonitoringDashboard() {
   const isHealthy = latest?.status === "HEALTHY";
   const openIncidents = incidents.filter((i) => i.status === "OPEN");
   const maxTime = Math.max(1, ...records.map((r) => r.responseTimeMs ?? 0));
+  const isPaused = monStatus?.paused ?? false;
 
   return (
     <Layout>
@@ -79,27 +127,102 @@ export function MonitoringDashboard() {
 
       <div style={headerRow}>
         <h1 style={pageTitle}>Monitoring</h1>
-        {latest && (
-          <span
-            style={{
-              color: "#fff",
-              background: isHealthy
-                ? "linear-gradient(135deg, #22c55e, #16a34a)"
-                : "linear-gradient(135deg, #ef4444, #dc2626)",
-              borderRadius: "20px",
-              padding: "0.4rem 1.1rem",
-              fontSize: "0.82rem",
-              fontWeight: 700,
-              letterSpacing: "0.04em",
-              boxShadow: isHealthy
-                ? "0 4px 14px rgba(34,197,94,0.35)"
-                : "0 4px 14px rgba(239,68,68,0.35)",
-            }}
-          >
-            {isHealthy ? "● HEALTHY" : "● UNHEALTHY"}
-          </span>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          {/* Interval selector */}
+          {monStatus && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <span style={{ fontSize: "0.75rem", color: "#B89AAE", fontWeight: 600 }}>Check every</span>
+              <select
+                value={monStatus.intervalMs}
+                disabled={controlBusy || isPaused}
+                onChange={(e) => handleIntervalChange(Number(e.target.value))}
+                style={{
+                  background: "rgba(255,255,255,0.18)",
+                  border: "1px solid rgba(242,197,220,0.5)",
+                  borderRadius: "8px",
+                  color: "#45283E",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  padding: "0.3rem 0.55rem",
+                  cursor: isPaused ? "not-allowed" : "pointer",
+                  opacity: isPaused ? 0.5 : 1,
+                }}
+              >
+                {INTERVAL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Pause / Resume */}
+          {monStatus && (
+            <button
+              onClick={handlePauseResume}
+              disabled={controlBusy || !monStatus.active}
+              style={{
+                background: isPaused
+                  ? "linear-gradient(135deg, #22c55e, #16a34a)"
+                  : "rgba(255,255,255,0.22)",
+                border: isPaused
+                  ? "none"
+                  : "1px solid rgba(242,197,220,0.55)",
+                borderRadius: "8px",
+                color: isPaused ? "#fff" : "#45283E",
+                fontWeight: 700,
+                fontSize: "0.78rem",
+                padding: "0.35rem 0.9rem",
+                cursor: controlBusy || !monStatus.active ? "not-allowed" : "pointer",
+                opacity: controlBusy ? 0.6 : 1,
+                transition: "all 0.2s",
+              }}
+            >
+              {isPaused ? "▶ Resume" : "⏸ Pause"}
+            </button>
+          )}
+
+          {/* Health badge */}
+          {latest && (
+            <span
+              style={{
+                color: "#fff",
+                background: isPaused
+                  ? "linear-gradient(135deg, #9ca3af, #6b7280)"
+                  : isHealthy
+                    ? "linear-gradient(135deg, #22c55e, #16a34a)"
+                    : "linear-gradient(135deg, #ef4444, #dc2626)",
+                borderRadius: "20px",
+                padding: "0.4rem 1.1rem",
+                fontSize: "0.82rem",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                boxShadow: isPaused
+                  ? "none"
+                  : isHealthy
+                    ? "0 4px 14px rgba(34,197,94,0.35)"
+                    : "0 4px 14px rgba(239,68,68,0.35)",
+              }}
+            >
+              {isPaused ? "⏸ PAUSED" : isHealthy ? "● HEALTHY" : "● UNHEALTHY"}
+            </span>
+          )}
+        </div>
       </div>
+
+      {isPaused && (
+        <div style={{
+          background: "rgba(255,237,213,0.55)",
+          border: "1px solid rgba(251,146,60,0.4)",
+          borderRadius: "10px",
+          padding: "0.75rem 1.25rem",
+          marginBottom: "1.25rem",
+          fontSize: "0.85rem",
+          color: "#9a3412",
+          fontWeight: 500,
+        }}>
+          Monitoring is paused. Health checks are not running. Click <strong>Resume</strong> to restart.
+        </div>
+      )}
 
       {/* Container info */}
       {deployment && (
@@ -319,6 +442,8 @@ const headerRow: React.CSSProperties = {
   justifyContent: "space-between",
   alignItems: "center",
   marginBottom: "1.75rem",
+  flexWrap: "wrap",
+  gap: "0.75rem",
 };
 
 const chartContainer: React.CSSProperties = {
